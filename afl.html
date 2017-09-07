@@ -1,0 +1,340 @@
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<style>
+    .ui-tabs-vertical { width: 55em; }
+    .ui-tabs-vertical .ui-tabs-nav { padding: .2em .1em .2em .2em; float: left; width: 12em; }
+    .ui-tabs-vertical .ui-tabs-nav li { clear: left; width: 100%; border-bottom-width: 1px !important; border-right-width: 0 !important; margin: 0 -1px .2em 0; }
+    .ui-tabs-vertical .ui-tabs-nav li a { display:block; }
+    .ui-tabs-vertical .ui-tabs-nav li.ui-tabs-active { padding-bottom: 0; padding-right: .1em; border-right-width: 1px; }
+    .ui-tabs-vertical .ui-tabs-panel { padding: 1em; float: right; width: 40em;}
+</style>
+<link rel="stylesheet" href="cfl.css">
+<h2>Is your state making the grade?</h2>
+<p style="text-align: center;"><strong style="font-size: 1.2em;">Currently showing:</strong><select id="mapSelect">
+    <option value="Final">Final Grade</option>
+    <option value="Financial Knowledge">Financial Knowledge Grade</option>
+    <option value="Credit">Credit Grade</option>
+    <option value="General Credit">&emsp;General Credit Grade</option>
+    <option value="Housing Credit">&emsp;Housing Credit Grade</option>
+    <option value="Auto Credit">&emsp;Auto Credit Grade</option>
+    <option value="Credit Card">&emsp;Credit Card Grade</option>
+    <option value="Student Loan">&emsp;Student Loan Grade</option>
+    <option value="Other Credit">&emsp;Other Credit Grade</option>
+    <option value="Savings and Spending">Savings and Spending Grade</option>
+    <option value="Retirement Readiness and Other Investing">Retirement Readiness and Other Investing Grade</option>
+    <option value="Protect and Insure">Protect and Insure Grade</option>
+</select></p>
+<p style="text-align: center;"><em>Click on a state to view its grades and data points.</em></p>
+<div id="mapContainer" style="position: relative; width: 100%;"></div>
+<script type="text/javascript" src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script src="usa map.js"></script>
+<script type="text/javascript">// <![CDATA[
+var appState = {
+    selected: 'Vermont',
+    dataSet: 'Final'
+};
+
+var map = new Datamap({
+    element: document.getElementById('mapContainer'),
+    fills: {
+        A: '#2D7150',
+        B: '#89AC92',
+        C: '#EED898',
+        D: '#D89889',
+        F: '#A03123',
+        defaultFill: '#efefef'
+    },
+    geographyConfig: {
+        popupTemplate: function(geo, data) {
+            return ['<div class="hoverinfo"><strong>',
+                geo.properties.name,
+                '</strong><br/>Final Grade: ' + data.numberOfThings + '% (' + letterGrade(data.numberOfThings) + ')',
+                '<br /><em>Click for more information</em>',
+                '</div>'].join('');
+        },
+        highlightOnHover: true,
+        highlightBorderWidth: 5,
+        highlightBorderColor: '#cef1ff',
+        borderWidth: 2,
+        highlightFillColor: 'default'
+    },
+    data: parseData('Final'),
+    scope: 'usa',
+    height: 450,
+    done: function(datamap) {
+        datamap.svg.selectAll('.datamaps-subunit').on('click', function(geography) {
+            $detailsModal = $('[data-remodal-id=detailsModal]');
+            appState.selected = geography.properties.name;
+            $detailsModal.find('h1').html('Details - ' + appState.selected);
+            $detailsModal.find('.factSheetDownload').prop('href', 'http://champlain.edu/Documents/Centers-of-Excellence/Center-for-Financial-Literacy/2016-Adult-Report-Card/Fact-Sheets/' + appState.selected.split(' ').join('-') + '.pdf');
+            var stateModal = $detailsModal.remodal();
+
+            var selectedTabIndex = $("#mapSelect option:selected").index();
+            $( "#tabs" ).tabs({ active: selectedTabIndex });
+
+            var categories = {
+//              To be used for populating different tabs in each state's modal with relevant data
+//              the category tells us which tab it goes in and the subcategory tells us which
+//              piece of data to pull from the data file
+
+//              "category" : {
+//                  "subcategory" : "class-name"
+//              }
+
+//              The subcategories are found as keys in the data.js file
+//              The categories and class names are found in the states\ modal.html file
+
+                "overall" : {
+                    "Final" : "big",
+                    "Financial Knowledge" : "financial",
+                    "Credit" : "credit",
+                    "Savings and Spending" : "saving",
+                    "Retirement Readiness and Other Investing" : "retirement",
+                    "Protect and Insure" : "protect"
+                },
+                "financial" : {
+                    "Financial Knowledge" : "big",
+                    "Mean number of correct answers" : "dp1",
+                    "Offered financial education and participated" : "dp2",
+                    "Levels of High School Financial Education" : "dp3"
+                },
+                "credit" : {
+                    "Credit" : "big",
+                    "General Credit" : "dp1",
+                    "Housing Credit" : "dp2",
+                    "Auto Credit" : "dp3",
+                    "Credit Card" : "dp4",
+                    "Student Loan" : "dp5",
+                    "Other Credit" : "dp6"
+                },
+                "credit-general" : {
+                    "General Credit" : "big",
+                    "Vantage Scores" : "dp1",
+                    "On Time Payers" : "dp2",
+                    "Prime Credit" : "dp3",
+                    "Inclusion in Credit Economy" : "dp4",
+                    "Revolving Credit" : "dp5",
+                    "Utilization" : "dp6",
+                    "Bankruptcy" : "dp7",
+                    "Share Past Due" : "dp8",
+                    "Debt Burden" : "dp9",
+                    "Highest Tier Credit" : "dp10"
+                },
+                "credit-housing" : {
+                    "Housing Credit" : "big",
+                    "Loan to Value Ratios" : "dp1",
+                    "Equity Rich" : "dp2",
+                    "Homeownership Rates" : "dp3",
+                    "Mortgage Delinquency Rates" : "dp4",
+                    "Foreclosure Rates" : "dp5",
+                    "Have a Mortgage" : "dp6",
+                    "High Cost to Homeowners" : "dp7",
+                    "High Cost to Renters" : "dp8",
+                    "Seriously Underwater Mortgages" : "dp9",
+                    "Mortgage balance as a proportion of household income" : "dp10"
+                },
+                "credit-auto" : {
+                    "Auto Credit" : "big",
+                    "Auto Loan as Portion of Household Income" : "dp1",
+                    "Auto Loan Delinquencies" : "dp2",
+                    "Percent of Auto Loans" : "dp3",
+                    "Impact of Auto Insurance Premiumes on Credit Scores" : "dp4"
+                },
+                "credit-card" : {
+                    "Credit Card" : "big",
+                    "Always Paid Credit Card Bills In Full" : "dp1",
+                    "Carried Balance on Credit Card with Interest Charged" : "dp2",
+                    "Made only Minimum Monthly Payments on Credit Card" : "dp3",
+                    "Credit Card Delinquencies" : "dp4",
+                    "Average Credit Card Balance as a Percent of Median Household Income" : "dp5"
+                },
+                "credit-loans" : {
+                    "Student Loan" : "big",
+                    "Graduates with Student Debt" : "dp1",
+                    "Average Debt Balance" : "dp2",
+                    "Calculated monthly Payments Prior to Borrowing" : "dp3",
+                    "Never Made a Late Payment on your Student Loan" : "dp4"
+                },
+                "credit-other" : {
+                    "Other Credit" : "big",
+                    "Unpaid Medical Bills" : "dp1",
+                    "Used Alternative Borrowing" : "dp2",
+                    "Took a Loan from a Retirement Account" : "dp3",
+                    "Delinquency of Unsecured Personal Loans" : "dp4",
+                    "Balance of Unsecured Personal Loans as a Percent of Household Income" : "dp5"
+                },
+                "saving" : {
+                    "Savings and Spending" : "big",
+                    "Spend less than Income" : "dp1",
+                    "Does not have an emergency fund" : "dp2",
+                    "Unbanked" : "dp3",
+                    "Underbanked" : "dp4",
+                    "Saving for Children's College" : "dp5",
+                    "Overdraws checking account occasionally" : "dp6",
+                    "Could come up with $2,000 in an emergency" : "dp7",
+                    "Has a household budget" : "dp8",
+                    "Has Taken a Hardship Withdrawal from Retirement Account" : "dp9"
+                },
+                "retirement" : {
+                    "Retirement Readiness and Other Investing" : "big",
+                    "Access to a Retirement Plan" : "dp1",
+                    "Take Up Rate  of Retirement Plans" : "dp2",
+                    "Tried to Figure Out how much needed for retirement" : "dp3",
+                    "Amount of Income residents will be able to replace in retirement" : "dp4",
+                    "Percent of residents who count on social security for 90+ of their retirement income" : "dp5",
+                    "Invests Outside of Retirement Accounts" : "dp6"
+                },
+                "protect" : {
+                    "Protect and Insure" : "big",
+                    "Percent without Health Insurance" : "dp1",
+                    "Average Face Amount of Life Insurance" : "dp2",
+                    "Uninsured Motorists" : "dp3"
+                }
+            };
+
+            $.each(categories, function (category, data) {
+                $.each(data, function(subcategory, selector) {
+                    $('#tabs-' + category).find('.grade.' + selector).processStateData(geography.id, subcategory);
+                })
+            });
+
+            $('.grade.n').next().html('');
+            //location.hash = "#detailsModal";
+            stateModal.open();
+        });
+    }
+});
+
+function changeDataSet(set) {
+    map.updateChoropleth(parseData(set));
+    map.options.geographyConfig.popupTemplate = function(geo, data) {
+        return ['<div class="hoverinfo"><strong>',
+            geo.properties.name,
+            '</strong><br/>' + set + ' Grade: ' + data.numberOfThings + '% (' + letterGrade(data.numberOfThings) + ')',
+            '<br /><em>Click for more information</em>',
+            '</div>'].join('');
+    };
+
+    appState.dataSet = set;
+}
+
+function getGrade(stateCode, grade) {
+    var result;
+
+    for (var i=0; i<overallGrades.length; i++) {
+        if (overallGrades[i]['State Code'] === stateCode) {
+            result = overallGrades[i][grade];
+            break;
+        }
+    }
+
+    return result;
+}
+
+function getFactsheetLink(stateCode) {
+    var result;
+
+    for (var i=0; i<factSheetLinks.length; i++) {
+        if (factSheetLinks[i]['State Code'] === stateCode) {
+            result = faceSheetLinks[i]['Link'];
+            break;
+        }
+    }
+
+    return result;
+}
+
+function parseData(grade) {
+    var result = {};
+    var currentState;
+
+    for (var i = 0; i < overallGrades.length; i++) {
+        currentState = overallGrades[i];
+        result[currentState['State Code']] = {
+            fillKey: letterGrade(currentState[grade]).charAt(),
+            numberOfThings: currentState[grade]
+        }
+    }
+
+    return result;
+}
+
+(function($) {
+    $.fn.processStateData = function(stateId, dataCategory) {
+        var gradeNum = getGrade(stateId, dataCategory);
+        var gradeLetter = letterGrade(gradeNum);
+
+        $(this).html(gradeLetter)
+            .removeClass('a b c d f')
+            .addClass(gradeLetter.charAt().toLowerCase())
+            .next()
+            .html(gradeNum + '%');
+
+        return this;
+    };
+})(jQuery);
+
+function letterGrade(number) {
+    var result = 'A';
+
+    if(number == "NA") {
+        result = 'NA';
+    }
+    else if (number < 60) {
+        result = 'F';
+    }
+    else if (number < 63) {
+        result = 'D-';
+    }
+    else if (number < 67) {
+        result = 'D';
+    }
+    else if (number < 70) {
+        result = 'D+';
+    }
+    else if (number < 73) {
+        result = 'C-';
+    }
+    else if (number < 77) {
+        result = 'C';
+    }
+    else if (number < 80) {
+        result = 'C+';
+    }
+    else if (number < 83) {
+        result = 'B-';
+    }
+    else if (number < 87) {
+        result = 'B';
+    }
+    else if (number < 90) {
+        result = 'B+';
+    }
+    else if (number < 93) {
+        result = 'A-';
+    }
+    else if (number < 97) {
+        result = 'A';
+    }
+    else {
+        result = 'A+';
+    }
+
+    return result;
+}
+
+$(document).ready(function() {
+    $( "#mapSelect" ).change( function() {
+        changeDataSet($(this).val());
+    });
+});
+// ]]></script>
+<script>
+    $( function() {
+        $("#tabs").tabs().addClass( "ui-tabs-vertical ui-helper-clearfix" );
+        $("#tabs").find("li" ).removeClass( "ui-corner-top" ).addClass( "ui-corner-left" );
+    } );
+</script>
